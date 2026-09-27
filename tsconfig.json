@@ -1,18 +1,16 @@
 {
-  "compilerOptions": {
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "target": "ES2023",
-    "types": ["node"],
-    "strict": true,
-    "noImplicitOverride": true,
-    "noFallthroughCasesInSwitch": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "isolatedModules": true,
-    "removeComments": true,
-    "sourceMap": true,
-    "outDir": "./dist",
-    "skipLibCheck": true
-  }
+  // Solution file: lets editors see every TypeScript project in the workspace.
+  // Type-checking runs per app/package through Turborepo (`pnpm typecheck`);
+  // shared compiler options live in tsconfig.base.json.
+  "files": [],
+  "references": [
+    { "path": "./apps/api" },
+    { "path": "./apps/notification" },
+    { "path": "./apps/webhook" },
+    { "path": "./apps/integration" },
+    { "path": "./packages/shared" },
+    { "path": "./packages/config" },
+    { "path": "./packages/database" },
+    { "path": "./packages/messaging" }
+  ]
 }

@@ -1,7 +1,7 @@
 {
   "name": "while-building-api",
   "version": "0.1.0",
-  "description": "Backend API for While Building — things I build, things I learn, things I break.",
+  "description": "Backend monorepo for While Building — NestJS apps (api, notification, webhook, integration) and shared technical packages.",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
@@ -10,44 +10,31 @@
     "node": "^22.13.0 || >=24.11.0"
   },
   "scripts": {
-    "build": "nest build",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "dev": "turbo watch dev",
+    "dev:api": "turbo watch dev --filter=@while-building/api",
+    "dev:notification": "turbo watch dev --filter=@while-building/notification",
+    "dev:webhook": "turbo watch dev --filter=@while-building/webhook",
+    "dev:integration": "turbo watch dev --filter=@while-building/integration",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint && turbo boundaries",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.ts"
-  },
-  "dependencies": {
-    "@nestjs/common": "^12.1.0",
-    "@nestjs/config": "^12.0.1",
-    "@nestjs/core": "^12.1.0",
-    "@nestjs/platform-express": "^12.1.0",
-    "@nestjs/typeorm": "^12.0.1",
-    "pg": "^8.23.0",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2",
-    "typeorm": "^1.1.1"
+    "db:migrate": "turbo run db:migrate --filter=@while-building/api",
+    "db:migrate:status": "turbo run db:migrate:status --filter=@while-building/api",
+    "db:migrate:revert": "turbo run db:migrate:revert --filter=@while-building/api",
+    "db:migration:generate": "turbo run db:migration:generate --filter=@while-building/api --",
+    "db:seed": "turbo run db:seed --filter=@while-building/api"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@nestjs/cli": "^12.0.6",
-    "@nestjs/schematics": "^12.0.5",
-    "@nestjs/testing": "^12.1.0",
-    "@types/node": "^24.13.6",
-    "@types/supertest": "^7.2.1",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.9.9",
-    "supertest": "^7.3.0",
+    "turbo": "^2.11.4",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.70.1",
-    "vitest": "^5.0.1"
+    "typescript-eslint": "^8.70.1"
   }
 }

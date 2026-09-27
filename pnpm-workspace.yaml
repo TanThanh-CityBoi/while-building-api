@@ -1,0 +1,7 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+allowBuilds:
+  # Analytics postinstall pulled in via @nestjs/swagger → swagger-ui-dist. Not needed; never run it.
+  '@scarf/scarf': false

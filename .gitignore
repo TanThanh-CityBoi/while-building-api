@@ -5,6 +5,9 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# Turborepo cache and task logs
+.turbo/
+
 # test output
 coverage/
 

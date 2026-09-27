@@ -1,9 +1,10 @@
-# Local PostgreSQL for development. The API itself runs on the host via pnpm.
+# Local PostgreSQL for development. The apps themselves run on the host via pnpm.
 #
 #   docker compose -f docker/docker-compose.yml up -d
 #
-# Defaults match .env.example. If you change the DATABASE_* values in .env,
-# add `--env-file .env` so the container uses the same credentials and port.
+# Defaults match apps/api/.env.example. If you change the DATABASE_* values in
+# apps/api/.env, add `--env-file apps/api/.env` so the container uses the same
+# credentials and port.
 name: while-building-api
 
 services:

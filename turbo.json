@@ -1,0 +1,60 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "stream",
+  "envMode": "loose",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "lint": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"]
+    },
+    "test:e2e": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true,
+      "interruptible": true
+    },
+    "db:migrate": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "db:migrate:status": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "db:migrate:revert": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "db:migration:generate": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "db:seed": {
+      "dependsOn": ["^build"],
+      "cache": false
+    }
+  },
+  "boundaries": {
+    "tags": {
+      "app": {
+        "dependents": {
+          "deny": ["app", "package"]
+        }
+      }
+    }
+  }
+}

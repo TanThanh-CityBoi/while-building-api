@@ -1,0 +1,26 @@
+{
+  "name": "@while-building/messaging",
+  "version": "0.0.0",
+  "description": "Reserved for generic messaging infrastructure (envelopes, publisher/consumer ports). Empty for now; business events never live here.",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "typescript": "~6.0.3"
+  }
+}

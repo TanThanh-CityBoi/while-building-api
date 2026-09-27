@@ -5,7 +5,8 @@ import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
-  { ignores: ['dist/', 'coverage/', 'eslint.config.mjs'] },
+  // One config for every app and package (ESLint finds it from any workspace).
+  { ignores: ['**/dist/', '**/coverage/', 'eslint.config.mjs'] },
   eslint.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
   {

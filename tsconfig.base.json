@@ -1,0 +1,19 @@
+{
+  // Compiler options shared by every app and package. Each workspace's tsconfig.json
+  // extends this file and sets its own outDir and include.
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "ES2023",
+    "types": ["node"],
+    "strict": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "isolatedModules": true,
+    "removeComments": true,
+    "sourceMap": true,
+    "skipLibCheck": true
+  }
+}

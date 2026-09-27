@@ -1,0 +1,37 @@
+{
+  "name": "@while-building/database",
+  "version": "0.0.0",
+  "description": "Generic PostgreSQL/TypeORM setup: DATABASE_* settings and data-source conventions. No entities, repositories or migrations.",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@while-building/config": "workspace:*"
+  },
+  "peerDependencies": {
+    "pg": "^8.23.0",
+    "typeorm": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "pg": "^8.23.0",
+    "typeorm": "^1.1.1",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.1"
+  }
+}
