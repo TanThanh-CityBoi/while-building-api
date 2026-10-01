@@ -1,3 +1,4 @@
+import { PaginationMetaDto } from '../../../../shared/http/pagination-meta.dto.js';
 import { Role } from '../../domain/role.js';
 import { UserStatus } from '../../domain/user-status.js';
 
@@ -15,14 +16,6 @@ export class UserDto {
 
 export class UserResponseDto {
   data!: UserDto;
-}
-
-export class PaginationMetaDto {
-  /** 1-based. */
-  page!: number;
-  pageSize!: number;
-  total!: number;
-  totalPages!: number;
 }
 
 export class UserListResponseDto {

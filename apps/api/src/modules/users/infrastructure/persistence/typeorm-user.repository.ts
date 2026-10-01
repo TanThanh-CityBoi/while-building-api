@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
+import { escapeLike } from '../../../../shared/persistence/escape-like.js';
 import type { User } from '../../domain/entities/user.js';
 import { EmailAlreadyInUseError } from '../../domain/errors/user.errors.js';
 import {
@@ -127,10 +128,6 @@ export class TypeOrmUserRepository extends UserRepository {
   async delete(id: string): Promise<void> {
     await this.records.delete({ id });
   }
-}
-
-function escapeLike(value: string): string {
-  return value.replace(/[\\%_]/g, '\\$&');
 }
 
 /** A unique-email race becomes a domain error instead of a 500. */
