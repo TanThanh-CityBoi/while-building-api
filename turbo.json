@@ -46,6 +46,10 @@
     "db:seed": {
       "dependsOn": ["^build"],
       "cache": false
+    },
+    "db:seed:content": {
+      "dependsOn": ["^build"],
+      "cache": false
     }
   },
   "boundaries": {
