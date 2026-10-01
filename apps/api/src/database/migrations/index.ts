@@ -1,5 +1,6 @@
 import { CreateUsersAndAuthSessions1790500000000 } from './1790500000000-CreateUsersAndAuthSessions.js';
 import { AddSessionVersions1790600000000 } from './1790600000000-AddSessionVersions.js';
+import { CreateArticlesAndProjects1790700000000 } from './1790700000000-CreateArticlesAndProjects.js';
 
 /**
  * Every migration, in order. Registered explicitly (not by glob) so the same
@@ -9,4 +10,5 @@ import { AddSessionVersions1790600000000 } from './1790600000000-AddSessionVersi
 export const migrations = [
   CreateUsersAndAuthSessions1790500000000,
   AddSessionVersions1790600000000,
+  CreateArticlesAndProjects1790700000000,
 ];

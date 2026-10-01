@@ -30,7 +30,9 @@ export async function createTestApp(): Promise<TestApp> {
 export async function resetDatabase(app: TestApp): Promise<void> {
   await app
     .get(DataSource)
-    .query('TRUNCATE TABLE "auth_sessions", "users" CASCADE');
+    .query(
+      'TRUNCATE TABLE "auth_sessions", "users", "articles", "projects" CASCADE',
+    );
 }
 
 interface NewUser {

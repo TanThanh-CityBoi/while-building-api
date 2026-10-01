@@ -5,8 +5,8 @@ Backend API for **While Building** — _Things I build, things I learn, things I
 ## Overview
 
 `apps/api` is the main business API of the [`while-building-api` monorepo](../../README.md):
-authentication, users and authorization today, with content (articles, projects, drafts,
-publishing, media…) to follow. It owns the backend's business logic. It is a plain Node.js process
+authentication, users and authorization, plus read-only public content (articles and projects);
+content management (drafts, publishing, media…) is next. It owns the backend's business logic. It is a plain Node.js process
 with no provider-specific code, so it runs on Render, in Docker, on Kubernetes/k3s or any other
 Node.js host.
 
@@ -109,6 +109,7 @@ to the shared package.
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
 | `1790500000000-CreateUsersAndAuthSessions` | `users` and `auth_sessions` tables, role/status enums, indexes                                          |
 | `1790600000000-AddSessionVersions`         | `users.session_version`, `auth_sessions.user_session_version` (default 0; existing sessions stay valid) |
+| `1790700000000-CreateArticlesAndProjects`  | `articles` and `projects` tables, `content_status` / `project_stage` enums, slug and status indexes     |
 
 **Pulling this change into an existing database?** Run `pnpm db:migrate` before starting the API.
 
@@ -124,17 +125,24 @@ images, where the Nest CLI isn't installed).
 
 Current tables:
 
-| Table           | Purpose                                                                                                                                                                                                      |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `users`         | `id` (uuid), unique `email`, `password_hash`, `name`, `role`, `status`, `session_version`, `last_login_at`, timestamps. A partial unique index allows only one ROOT.                                         |
-| `auth_sessions` | One row per sign-in: `user_id` (cascade delete), SHA-256 `token_hash` (+ previous hash for rotation), `user_session_version`, `expires_at`, `revoked_at`, timestamps. Indexed by `user_id` and `expires_at`. |
+| Table           | Purpose                                                                                                                                                                                                              |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`         | `id` (uuid), unique `email`, `password_hash`, `name`, `role`, `status`, `session_version`, `last_login_at`, timestamps. A partial unique index allows only one ROOT.                                                 |
+| `articles`      | `id` (uuid), unique `slug`, `title`, `description`, `category`, `status` (`DRAFT`/`PUBLISHED`/`ARCHIVED`), Markdown `body`, `reading_time_minutes`, `published_at`, timestamps. Indexed by `(status, published_at)`. |
+| `projects`      | `id` (uuid), unique `slug`, `name`, `description`, `technologies` (text[]), `stage` (`active`/`experimental`/`archived`), `featured`, `status`, `links` (jsonb `{ label, href? }[]`), timestamps.                    |
+| `auth_sessions` | One row per sign-in: `user_id` (cascade delete), SHA-256 `token_hash` (+ previous hash for rotation), `user_session_version`, `expires_at`, `revoked_at`, timestamps. Indexed by `user_id` and `expires_at`.         |
 
 ### Seed
 
 ```bash
 pnpm db:seed          # build, then create the ROOT user if it doesn't exist
 pnpm db:seed:prod     # same, from an existing dist/ (run in apps/api)
+pnpm db:seed:content  # local development only: sample articles and projects (incl. drafts)
 ```
+
+`db:seed:content` writes the sample content in `src/database/sample-content.ts` (matched by slug, so
+re-running resets those rows and leaves others alone). It refuses to run with `NODE_ENV=production`;
+until the CMS manages content, it is the only way content gets into the database.
 
 ## Root account
 
@@ -196,6 +204,23 @@ Errors use the NestJS shape `{ "statusCode": 400, "message": "…" | ["…"], "e
 `400` invalid input (unknown fields are rejected), `401` not signed in, `403` missing permission,
 `404` not found, `409` conflict, `429` rate limited. Server errors never include details or stack traces.
 
+## Content
+
+Public, read-only routes for the website (and the MCP server). They need no token and only ever
+return `PUBLISHED` content: drafts and archived items answer `404`, the same as an unknown slug.
+
+| Endpoint              | Description                                                                                                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /articles`       | `?page=1&pageSize=10&search=&category=` → `{ data: ArticleSummary[], meta }`, newest first. `search` matches title, description or category; `category` is exact (case-insensitive). |
+| `GET /articles/:slug` | `{ data: Article }` — the summary plus its Markdown `body`.                                                                                                                          |
+| `GET /projects`       | `?page=1&pageSize=10&search=&technology=&featured=` → `{ data: Project[], meta }`, featured first, then most recently updated. `technology` is exact (case-insensitive).             |
+| `GET /projects/:slug` | `{ data: Project }`.                                                                                                                                                                 |
+
+`ArticleSummary` = `{ id, slug, title, description, category, publishedAt, readingTimeMinutes, createdAt, updatedAt }`;
+`Project` = `{ id, slug, name, description, technologies, stage, featured, links, createdAt, updatedAt }`.
+Responses never include the publishing status. `pageSize` is at most 50; slugs are lower-case words
+joined by hyphens (anything else is a `400`).
+
 ## Roles
 
 | Role     | Meaning                                                                          |
@@ -223,7 +248,7 @@ one static table, `modules/auth/domain/authorization/role-permissions.ts`:
 | `CONTENT_DELETE`  |  ✓   |   ✓   |        |        |
 | `CONTENT_PUBLISH` |  ✓   |   ✓   |   ✓    |        |
 
-Content permissions are defined ahead of the content modules.
+Content permissions are defined ahead of content management; the public content routes below need none.
 
 Authorization is enforced by two global guards: `AccessTokenGuard` (every route needs a valid access
 token unless marked `@Public()`) and `PermissionsGuard` (routes marked `@Permissions(...)` need all
@@ -319,10 +344,10 @@ src/
 │   │   ├── infrastructure/          # TypeORM user repository + mapper, Argon2PasswordHasher
 │   │   ├── presentation/            # UsersController, DTOs
 │   │   └── users.module.ts
-│   └── content/                     # future articles/projects/publishing; owns CONTENT_* permissions
-├── shared/                          # AppErrorFilter (AppError → HTTP), DTO string transformers
+│   └── content/                     # articles and projects (public, read-only for now); owns CONTENT_* permissions
+├── shared/                          # AppErrorFilter (AppError → HTTP), pagination DTO, DTO transformers, escapeLike
 ├── config/                          # the API's environment schema and validation
-├── database/                        # TypeORM config (entities, migrations), CLI data source, migrations, seed
+├── database/                        # TypeORM config (entities, migrations), CLI data source, migrations, seeds
 ├── health/                          # GET /health (deliberately not layered)
 ├── app.module.ts
 ├── configure-app.ts                 # HTTP setup shared by main.ts and the e2e tests
@@ -335,7 +360,7 @@ test/                                # e2e tests, setup, and in-memory fakes for
 
 Planned, not implemented yet:
 
-- Articles, projects and experiments APIs (drafts, publishing, revisions)
+- Content management for articles and projects (drafts, publishing, revisions); experiments
 - Media storage
 - Search, RSS and sitemap for the public site
 - Analytics and comments

@@ -16,6 +16,7 @@ export function setupSwagger(app: INestApplication): void {
           '`Authorization: Bearer <token>`) and sets an httpOnly refresh cookie used by',
           '`POST /auth/refresh` and `POST /auth/logout`. Every route requires a valid access',
           'token unless documented otherwise; user routes also require the listed permission.',
+          'Content routes (`/articles`, `/projects`) are public and only return published content.',
           '',
           'Roles → permissions: ROOT and ADMIN have all permissions; EDITOR has CONTENT_READ,',
           'CONTENT_CREATE, CONTENT_UPDATE, CONTENT_PUBLISH; AUTHOR has CONTENT_READ,',
