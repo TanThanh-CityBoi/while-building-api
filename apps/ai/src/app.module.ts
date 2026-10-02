@@ -11,7 +11,13 @@ import { HealthController } from './health/health.controller.js';
  */
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: validateEnv,
+      // Tests run on the environment vitest sets, never on a developer's .env
+      // (which holds real keys and local provider choices).
+      ignoreEnvFile: process.env.NODE_ENV === 'test',
+    }),
     ChatModule,
   ],
   controllers: [HealthController],
