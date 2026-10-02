@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { EnvironmentVariables } from '../config/env.validation.js';
 import { LlmError } from '../llm/llm.errors.js';
-import { LlmProvider } from '../llm/llm-provider.js';
+import { LlmRegistry } from '../llm/llm-registry.js';
 import type { ConversationItem, LlmEvent } from '../llm/llm.types.js';
 import {
   McpGateway,
@@ -21,8 +21,8 @@ const MAX_SOURCES = 10;
 /**
  * Answers one chat message: streams the model's turns, runs the tools it asks
  * for through MCP (in parallel, bounded rounds), feeds the results back, and
- * finishes with the sources it used. Provider-neutral: it only knows
- * LlmProvider and McpGateway.
+ * finishes with the sources it used. Provider-neutral: it only knows the
+ * LlmProvider chosen for the request (through LlmRegistry) and McpGateway.
  */
 @Injectable()
 export class AgentService {
@@ -30,7 +30,7 @@ export class AgentService {
   private readonly maxToolRounds: number;
 
   constructor(
-    private readonly llm: LlmProvider,
+    private readonly llms: LlmRegistry,
     private readonly mcp: McpGateway,
     config: ConfigService<EnvironmentVariables, true>,
   ) {
@@ -47,6 +47,7 @@ export class AgentService {
     let session: McpToolSession | null = null;
 
     try {
+      const llm = this.llms.get(input.provider);
       yield { type: 'status', phase: 'thinking' };
       session = await this.openTools(signal);
       const tools = session?.tools ?? [];
@@ -63,8 +64,9 @@ export class AgentService {
         // Tools stay declared (earlier tool calls refer to them).
         const canUseTools = tools.length > 0 && round < this.maxToolRounds;
         let end: TurnEnd | undefined;
-        for await (const event of this.llm.streamTurn(
+        for await (const event of llm.streamTurn(
           {
+            model: input.model,
             system,
             conversation,
             tools,
@@ -151,7 +153,8 @@ export class AgentService {
       await session?.close();
       // Never log message contents.
       this.logger.log(
-        `chat user=${input.userId} outcome=${outcome} rounds=${stats.rounds} tools=${stats.toolCalls} ` +
+        `chat user=${input.userId} model=${input.provider}/${input.model} outcome=${outcome} ` +
+          `rounds=${stats.rounds} tools=${stats.toolCalls} ` +
           `tokens=${stats.inputTokens}/${stats.outputTokens} ${Date.now() - started}ms`,
       );
     }

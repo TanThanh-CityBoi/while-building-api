@@ -12,7 +12,6 @@ import {
 } from './anthropic.mapping.js';
 
 export interface AnthropicSettings {
-  model: string;
   effort: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   maxOutputTokens: number;
 }
@@ -44,7 +43,7 @@ export class AnthropicLlmProvider extends LlmProvider {
     const hasTools = request.tools.length > 0;
     const stream = this.client.beta.messages.stream(
       {
-        model: this.settings.model,
+        model: request.model,
         max_tokens: this.settings.maxOutputTokens,
         system: request.system,
         messages: toMessageParams(request.conversation),

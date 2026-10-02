@@ -8,18 +8,18 @@ application that can be built, run and later deployed (or split further) on its 
 
 ## Layout
 
-| Workspace            | Package                        | Port | Responsibility                                                                                                                 |
-| -------------------- | ------------------------------ | ---- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `apps/api`           | `@while-building/api`          | 3000 | The business API: auth, users, public content. See [its README](apps/api/README.md).                                           |
-| `apps/notification`  | `@while-building/notification` | 3001 | Future notification delivery (email…). Application shell only (`GET /health`).                                                 |
-| `apps/webhook`       | `@while-building/webhook`      | 3002 | Future inbound webhooks from external providers. Application shell only.                                                       |
-| `apps/integration`   | `@while-building/integration`  | 3003 | Future third-party integrations (OAuth, external APIs). Application shell only.                                                |
-| `apps/ai`            | `@while-building/ai`           | 3004 | The assistant's backend: `POST /chat` (SSE), agent loop over Claude and the MCP tools. See [its README](apps/ai/README.md).    |
-| `apps/mcp`           | `@while-building/mcp`          | 3005 | MCP server: read-only tools/resources over published content, via the API's HTTP routes. See [its README](apps/mcp/README.md). |
-| `packages/shared`    | `@while-building/shared`       | —    | Framework-free primitives (`AppError`).                                                                                        |
-| `packages/config`    | `@while-building/config`       | —    | Environment readers and validation helpers, duration parsing.                                                                  |
-| `packages/database`  | `@while-building/database`     | —    | `DATABASE_*` settings and PostgreSQL/TypeORM conventions.                                                                      |
-| `packages/messaging` | `@while-building/messaging`    | —    | Reserved for generic messaging infrastructure; empty until an app needs it.                                                    |
+| Workspace            | Package                        | Port | Responsibility                                                                                                                                |
+| -------------------- | ------------------------------ | ---- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api`           | `@while-building/api`          | 3000 | The business API: auth, users, public content. See [its README](apps/api/README.md).                                                          |
+| `apps/notification`  | `@while-building/notification` | 3001 | Future notification delivery (email…). Application shell only (`GET /health`).                                                                |
+| `apps/webhook`       | `@while-building/webhook`      | 3002 | Future inbound webhooks from external providers. Application shell only.                                                                      |
+| `apps/integration`   | `@while-building/integration`  | 3003 | Future third-party integrations (OAuth, external APIs). Application shell only.                                                               |
+| `apps/ai`            | `@while-building/ai`           | 3004 | The assistant's backend: `POST /chat` (SSE), agent loop over Claude, OpenAI or Gemini and the MCP tools. See [its README](apps/ai/README.md). |
+| `apps/mcp`           | `@while-building/mcp`          | 3005 | MCP server: read-only tools/resources over published content, via the API's HTTP routes. See [its README](apps/mcp/README.md).                |
+| `packages/shared`    | `@while-building/shared`       | —    | Framework-free primitives (`AppError`).                                                                                                       |
+| `packages/config`    | `@while-building/config`       | —    | Environment readers and validation helpers, duration parsing.                                                                                 |
+| `packages/database`  | `@while-building/database`     | —    | `DATABASE_*` settings and PostgreSQL/TypeORM conventions.                                                                                     |
+| `packages/messaging` | `@while-building/messaging`    | —    | Reserved for generic messaging infrastructure; empty until an app needs it.                                                                   |
 
 `docker/docker-compose.yml` runs a local PostgreSQL; the apps themselves run on the host.
 

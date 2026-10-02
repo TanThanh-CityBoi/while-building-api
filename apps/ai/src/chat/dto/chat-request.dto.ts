@@ -4,6 +4,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsIn,
+  IsOptional,
   IsString,
   Matches,
   MaxLength,
@@ -35,4 +36,16 @@ export class ChatRequestDto {
   @ValidateNested({ each: true })
   @Type(() => ChatMessageDto)
   messages!: ChatMessageDto[];
+
+  /** An enabled provider (see GET /models); default: AI_DEFAULT_PROVIDER. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  provider?: string;
+
+  /** One of the provider's models (see GET /models); default: its first model. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  model?: string;
 }

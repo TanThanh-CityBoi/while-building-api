@@ -46,6 +46,8 @@ export interface ToolResultsItem {
 export type ConversationItem = UserItem | AssistantItem | ToolResultsItem;
 
 export interface LlmTurnRequest {
+  /** The provider's model id (validated against the model catalog upstream). */
+  model: string;
   system: string;
   conversation: readonly ConversationItem[];
   tools: readonly ToolDefinition[];

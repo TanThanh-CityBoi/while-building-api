@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   call,
+  fakeRegistry,
   FakeLlmProvider,
   type ScriptedTurn,
 } from '../../test/fakes/fake-llm-provider.js';
@@ -11,6 +12,10 @@ import { AgentService } from './agent.service.js';
 import type { AgentEvent, ChatMessage } from './agent.types.js';
 
 const ask = (content: string): ChatMessage[] => [{ role: 'user', content }];
+const SELECTION = {
+  provider: 'anthropic',
+  model: 'claude-sonnet-5-5',
+} as const;
 
 describe('AgentService', () => {
   let mcp: FakeMcpGateway;
@@ -22,7 +27,7 @@ describe('AgentService', () => {
   function agentWith(turns: Array<ScriptedTurn | Error>, maxToolRounds = 3) {
     const llm = new FakeLlmProvider(turns);
     const agent = new AgentService(
-      llm,
+      fakeRegistry({ anthropic: llm }),
       mcp,
       testConfig({ AI_MAX_TOOL_ROUNDS: maxToolRounds }),
     );
@@ -35,7 +40,10 @@ describe('AgentService', () => {
     signal = new AbortController().signal,
   ): Promise<AgentEvent[]> {
     const events: AgentEvent[] = [];
-    for await (const event of agent.run({ messages, userId: 'u-1' }, signal)) {
+    for await (const event of agent.run(
+      { messages, ...SELECTION, userId: 'u-1' },
+      signal,
+    )) {
       events.push(event);
     }
     return events;
@@ -57,6 +65,7 @@ describe('AgentService', () => {
     ]);
     expect(llm.requests).toHaveLength(1);
     expect(llm.requests[0]).toMatchObject({
+      model: 'claude-sonnet-5-5',
       toolChoice: 'auto',
       conversation: [{ role: 'user', text: 'Hi' }],
     });
@@ -350,7 +359,7 @@ describe('AgentService', () => {
     const events: AgentEvent[] = [];
 
     for await (const event of agent.run(
-      { messages: ask('Hi'), userId: 'u-1' },
+      { messages: ask('Hi'), ...SELECTION, userId: 'u-1' },
       controller.signal,
     )) {
       events.push(event);

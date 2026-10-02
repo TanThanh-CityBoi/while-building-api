@@ -9,10 +9,14 @@ import { AuthApi } from '../src/auth/auth-api.js';
 import { CHAT_LIMITS } from '../src/chat/dto/chat-request.dto.js';
 import { configureApp } from '../src/configure-app.js';
 import { LlmError } from '../src/llm/llm.errors.js';
-import { LlmProvider } from '../src/llm/llm-provider.js';
+import { LlmRegistry } from '../src/llm/llm-registry.js';
 import { McpGateway } from '../src/mcp-client/mcp-gateway.js';
 import { FakeAuthApi } from './fakes/fake-auth-api.js';
-import { call, FakeLlmProvider } from './fakes/fake-llm-provider.js';
+import {
+  call,
+  fakeRegistry,
+  FakeLlmProvider,
+} from './fakes/fake-llm-provider.js';
 import { FakeMcpGateway } from './fakes/fake-mcp-gateway.js';
 
 interface StreamEvent {
@@ -47,14 +51,16 @@ describe('POST /chat (e2e)', () => {
   let app: INestApplication<Server>;
   let http: Server;
   const llm = new FakeLlmProvider();
+  const openai = new FakeLlmProvider();
+  const gemini = new FakeLlmProvider();
   const mcp = new FakeMcpGateway();
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(AuthApi)
       .useValue(new FakeAuthApi())
-      .overrideProvider(LlmProvider)
-      .useValue(llm)
+      .overrideProvider(LlmRegistry)
+      .useValue(fakeRegistry({ anthropic: llm, openai, gemini }))
       .overrideProvider(McpGateway)
       .useValue(mcp)
       .compile();
@@ -70,6 +76,8 @@ describe('POST /chat (e2e)', () => {
 
   beforeEach(() => {
     llm.reset();
+    openai.reset();
+    gemini.reset();
   });
 
   const chat = (token?: string) => {
@@ -280,6 +288,136 @@ describe('POST /chat (e2e)', () => {
     expect(
       response.headers['access-control-allow-credentials'],
     ).toBeUndefined();
+  });
+
+  describe('provider and model', () => {
+    it('lists the enabled providers and their models on GET /models', async () => {
+      await request(http).get('/models').expect(401);
+
+      const response = await request(http)
+        .get('/models')
+        .set('Authorization', `Bearer ${freshToken()}`)
+        .expect(200);
+      expect(response.body).toEqual({
+        data: {
+          defaultProvider: 'anthropic',
+          providers: [
+            {
+              id: 'anthropic',
+              label: 'Anthropic',
+              defaultModel: 'claude-opus-5-5',
+              models: [
+                { id: 'claude-opus-5-5', label: 'Claude Opus 5.5' },
+                { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' },
+              ],
+            },
+            {
+              id: 'openai',
+              label: 'OpenAI',
+              defaultModel: 'gpt-5.5',
+              models: [
+                { id: 'gpt-5.5', label: 'GPT-5.5' },
+                { id: 'gpt-5.4-mini', label: 'GPT-5.4 mini' },
+              ],
+            },
+            {
+              id: 'gemini',
+              label: 'Google Gemini',
+              defaultModel: 'gemini-pro-latest',
+              models: [
+                { id: 'gemini-pro-latest', label: 'Gemini Pro (latest)' },
+                { id: 'gemini-flash-latest', label: 'Gemini Flash (latest)' },
+                { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
+              ],
+            },
+          ],
+        },
+      });
+    });
+
+    it('uses the default provider and model when the request names none', async () => {
+      llm.enqueue({ text: ['ok'] });
+      await chat(freshToken()).send(ask('Hi')).expect(200);
+      expect(llm.requests[0]?.model).toBe('claude-opus-5-5');
+      expect(openai.requests).toEqual([]);
+    });
+
+    it('routes the answer to the chosen provider and model', async () => {
+      openai.enqueue({ text: ['from OpenAI'] });
+      const response = await chat(freshToken())
+        .send({ ...ask('Hi'), provider: 'openai', model: 'gpt-5.4-mini' })
+        .expect(200);
+      expect(
+        parseSse(response.text).find((e) => e.event === 'text')?.data,
+      ).toEqual({
+        type: 'text',
+        delta: 'from OpenAI',
+      });
+      expect(openai.requests[0]?.model).toBe('gpt-5.4-mini');
+      expect(llm.requests).toEqual([]);
+
+      openai.enqueue({ text: ['default model'] });
+      await chat(freshToken())
+        .send({ ...ask('Hi'), provider: 'openai' })
+        .expect(200);
+      expect(openai.requests[1]?.model).toBe('gpt-5.5');
+    });
+
+    it('routes the answer to Gemini', async () => {
+      gemini.enqueue({ text: ['from Gemini'] });
+      const response = await chat(freshToken())
+        .send({
+          ...ask('Hi'),
+          provider: 'gemini',
+          model: 'gemini-flash-latest',
+        })
+        .expect(200);
+      expect(
+        parseSse(response.text).find((e) => e.event === 'text')?.data,
+      ).toEqual({
+        type: 'text',
+        delta: 'from Gemini',
+      });
+      expect(gemini.requests[0]?.model).toBe('gemini-flash-latest');
+      expect(llm.requests).toEqual([]);
+      expect(openai.requests).toEqual([]);
+    });
+
+    it.each([
+      [
+        { provider: 'mistral' },
+        'Unknown or unavailable provider "mistral". Available: anthropic, openai, gemini.',
+      ],
+      [
+        { provider: 'openai', model: 'claude-opus-5-5' },
+        'Model "claude-opus-5-5" is not available for openai. Available: gpt-5.5, gpt-5.4-mini.',
+      ],
+      [
+        { provider: 'gemini', model: 'gpt-5.5' },
+        'Model "gpt-5.5" is not available for gemini. Available: gemini-pro-latest, gemini-flash-latest, gemini-3.8-flash.',
+      ],
+      [
+        { model: 'gpt-4o' },
+        'Model "gpt-4o" is not available for anthropic. Available: claude-opus-5-5, claude-sonnet-5-5.',
+      ],
+    ])('rejects %j with 400 before streaming', async (choice, message) => {
+      const response = await chat(freshToken())
+        .send({ ...ask('Hi'), ...choice })
+        .expect(400);
+      expect(response.body).toMatchObject({ statusCode: 400, message });
+      expect(llm.requests).toEqual([]);
+      expect(openai.requests).toEqual([]);
+      expect(gemini.requests).toEqual([]);
+    });
+
+    it('validates the shape of provider and model', async () => {
+      await chat(freshToken())
+        .send({ ...ask('Hi'), provider: 42 })
+        .expect(400);
+      await chat(freshToken())
+        .send({ ...ask('Hi'), model: 'x'.repeat(101) })
+        .expect(400);
+    });
   });
 
   it('answers GET /health', () => {

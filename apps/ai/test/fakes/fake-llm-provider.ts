@@ -1,4 +1,9 @@
 import { LlmProvider } from '../../src/llm/llm-provider.js';
+import { LlmRegistry } from '../../src/llm/llm-registry.js';
+import {
+  MODEL_CATALOG,
+  type LlmProviderId,
+} from '../../src/llm/model-catalog.js';
 import type {
   ConversationItem,
   LlmEvent,
@@ -82,4 +87,24 @@ export function call(
   input: Record<string, unknown> = {},
 ): ToolCall {
   return { id, name, input };
+}
+
+/** An LlmRegistry over fake providers, with every catalog model allowed. */
+export function fakeRegistry(
+  providers: Partial<Record<LlmProviderId, LlmProvider>>,
+  defaultProvider: LlmProviderId = 'anthropic',
+): LlmRegistry {
+  const enabled = Object.entries(providers) as Array<
+    [LlmProviderId, LlmProvider]
+  >;
+  return new LlmRegistry(
+    new Map(enabled),
+    Object.fromEntries(
+      enabled.map(([id]) => [
+        id,
+        MODEL_CATALOG[id].models.map((model) => model.id),
+      ]),
+    ),
+    defaultProvider,
+  );
 }

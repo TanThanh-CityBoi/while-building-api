@@ -5,12 +5,15 @@ import { AgentModule } from '../agent/agent.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import type { AuthenticatedRequest } from '../auth/authenticated-user.js';
 import type { EnvironmentVariables } from '../config/env.validation.js';
+import { LlmModule } from '../llm/llm.module.js';
 import { ChatController } from './chat.controller.js';
+import { ModelsController } from './models.controller.js';
 
 @Module({
   imports: [
     AgentModule,
     AuthModule,
+    LlmModule,
     // Each answer costs LLM tokens: limit requests per signed-in user.
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
@@ -29,6 +32,6 @@ import { ChatController } from './chat.controller.js';
       }),
     }),
   ],
-  controllers: [ChatController],
+  controllers: [ChatController, ModelsController],
 })
 export class ChatModule {}

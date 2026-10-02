@@ -89,7 +89,6 @@ function providerReturning(response: () => Response | Promise<Response>) {
     },
   });
   const provider = new AnthropicLlmProvider(client, {
-    model: 'claude-opus-5-5',
     effort: 'medium',
     maxOutputTokens: 64_000,
   });
@@ -97,6 +96,7 @@ function providerReturning(response: () => Response | Promise<Response>) {
 }
 
 const request: LlmTurnRequest = {
+  model: 'claude-opus-5-5',
   system: 'You are a test.',
   conversation: [{ role: 'user', text: 'Any k3s articles?' }],
   tools: [

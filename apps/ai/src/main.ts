@@ -14,7 +14,11 @@ async function bootstrap(): Promise<void> {
   const port = config.get('PORT', { infer: true });
   await app.listen(port);
   Logger.log(
-    `While Building AI app listening on port ${port} (model ${config.get('AI_MODEL', { infer: true })})`,
+    `While Building AI app listening on port ${port} (providers: ${config
+      .get('AI_PROVIDERS', { infer: true })
+      .join(
+        ', ',
+      )}; default: ${config.get('AI_DEFAULT_PROVIDER', { infer: true })})`,
     'Bootstrap',
   );
 }

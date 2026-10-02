@@ -15,6 +15,11 @@ import { AgentService } from '../agent/agent.service.js';
 import { ApiAuthGuard } from '../auth/api-auth.guard.js';
 import type { AuthenticatedRequest } from '../auth/authenticated-user.js';
 import type { EnvironmentVariables } from '../config/env.validation.js';
+import {
+  LlmRegistry,
+  ModelSelectionError,
+  type ModelSelection,
+} from '../llm/llm-registry.js';
 import { CHAT_LIMITS, ChatRequestDto } from './dto/chat-request.dto.js';
 import { openEventStream } from './sse.js';
 
@@ -33,6 +38,7 @@ export class ChatController {
 
   constructor(
     private readonly agent: AgentService,
+    private readonly llms: LlmRegistry,
     config: ConfigService<EnvironmentVariables, true>,
   ) {
     this.requestTimeoutMs =
@@ -46,6 +52,7 @@ export class ChatController {
     @Res() res: Response,
   ): Promise<void> {
     assertConversation(body);
+    const selection = this.select(body);
 
     // `res` closes before finishing only if the client went away (stop
     // button, navigation). Not `req`: it closes as soon as the body is read.
@@ -61,7 +68,11 @@ export class ChatController {
     const stream = openEventStream(res);
     try {
       const events = this.agent.run(
-        { messages: body.messages, userId: req.user?.id ?? 'unknown' },
+        {
+          messages: body.messages,
+          ...selection,
+          userId: req.user?.id ?? 'unknown',
+        },
         signal,
       );
       for await (const event of events) stream.send(event);
@@ -77,6 +88,18 @@ export class ChatController {
       });
     } finally {
       stream.close();
+    }
+  }
+
+  /** The client's provider/model choice, validated (never trusted as-is). */
+  private select({ provider, model }: ChatRequestDto): ModelSelection {
+    try {
+      return this.llms.resolve({ provider, model });
+    } catch (error) {
+      if (error instanceof ModelSelectionError) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
     }
   }
 }

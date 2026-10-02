@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "~0.129.0",
+    "@google/genai": "~2.24.0",
     "@modelcontextprotocol/client": "^2.2.0",
     "@nestjs/common": "^12.1.0",
     "@nestjs/config": "^12.0.1",
@@ -25,6 +26,7 @@
     "@while-building/config": "workspace:*",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "openai": "~7.25.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
