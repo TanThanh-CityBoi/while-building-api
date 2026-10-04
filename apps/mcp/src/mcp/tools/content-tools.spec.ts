@@ -65,6 +65,7 @@ describe('MCP content tools', () => {
           title: 'My k3s Homelab',
           description: 'About k3s-homelab.',
           category: 'Kubernetes',
+          author: 'Ada Lovelace',
           publishedAt: '2026-09-01T00:00:00.000Z',
           readingTimeMinutes: 5,
           uri: 'article://k3s-homelab',
@@ -92,7 +93,7 @@ describe('MCP content tools', () => {
     expect(result.structuredContent).toEqual({ articles: [], total: 0 });
   });
 
-  it('get_article returns the body but no internal fields', async () => {
+  it('get_article returns the content as Markdown but no internal fields', async () => {
     const result = await client.callTool({
       name: 'get_article',
       arguments: { slug: 'k3s-homelab' },
@@ -102,10 +103,17 @@ describe('MCP content tools', () => {
     };
     expect(article).toMatchObject({
       slug: 'k3s-homelab',
-      body: '# My k3s Homelab\n\nRunning k3s on a Mini PC.',
+      body: '## Setup\n\nRunning k3s on a Mini PC.',
       uri: 'article://k3s-homelab',
     });
-    for (const internal of ['id', 'createdAt', 'updatedAt', 'status']) {
+    for (const internal of [
+      'id',
+      'createdAt',
+      'updatedAt',
+      'status',
+      'content',
+      'coverImage',
+    ]) {
       expect(article).not.toHaveProperty(internal);
     }
   });

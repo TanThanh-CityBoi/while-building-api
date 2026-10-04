@@ -18,12 +18,15 @@ export class FakeContentApi extends ContentApi {
     article('k3s-homelab', {
       title: 'My k3s Homelab',
       category: 'Kubernetes',
-      body: '# My k3s Homelab\n\nRunning k3s on a Mini PC.',
+      content: [
+        { type: 'heading', props: { level: 2 }, content: [text('Setup')] },
+        { type: 'paragraph', content: [text('Running k3s on a Mini PC.')] },
+      ],
     }),
     article('nestjs-from-scratch', {
       title: 'NestJS from Scratch',
       category: 'Backend',
-      body: '# NestJS from Scratch',
+      content: [{ type: 'paragraph', content: [text('Modules first.')] }],
     }),
   ];
   projects: ApiProject[] = [
@@ -50,7 +53,7 @@ export class FakeContentApi extends ContentApi {
         .filter(
           (a) =>
             !query.category ||
-            a.category.toLowerCase() === query.category.toLowerCase(),
+            a.category?.toLowerCase() === query.category.toLowerCase(),
         )
         .slice(0, query.pageSize ?? 10)
         .map(toSummary);
@@ -91,11 +94,13 @@ function article(slug: string, overrides: Partial<ApiArticle>): ApiArticle {
     id: `a-${slug}`,
     slug,
     title: slug,
-    description: `About ${slug}.`,
+    excerpt: `About ${slug}.`,
     category: 'Backend',
+    coverImage: null,
+    author: { id: 'u-1', name: 'Ada Lovelace' },
     publishedAt: '2026-09-01T00:00:00.000Z',
     readingTimeMinutes: 5,
-    body: null,
+    content: [],
     createdAt: '2026-08-30T00:00:00.000Z',
     updatedAt: '2026-09-01T00:00:00.000Z',
     ...overrides,
@@ -104,8 +109,12 @@ function article(slug: string, overrides: Partial<ApiArticle>): ApiArticle {
 
 function toSummary(article: ApiArticle): ApiArticleSummary {
   const summary: Partial<ApiArticle> = { ...article };
-  delete summary.body;
+  delete summary.content;
   return summary as ApiArticleSummary;
+}
+
+function text(value: string) {
+  return { type: 'text', text: value, styles: {} };
 }
 
 function page<T>(data: T[]): Page<T> {

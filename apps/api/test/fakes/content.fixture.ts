@@ -1,25 +1,45 @@
+import { ArticleStatus } from '../../src/modules/content/domain/article-status.js';
 import { ContentStatus } from '../../src/modules/content/domain/content-status.js';
 import type { ArticleProps } from '../../src/modules/content/domain/entities/article.js';
+import {
+  ArticleContent,
+  type ContentBlock,
+} from '../../src/modules/content/domain/value-objects/article-content.js';
+import { ArticleSlug } from '../../src/modules/content/domain/value-objects/article-slug.js';
+import { FakeAuthorDirectory } from './fake-author-directory.js';
 import type { ProjectProps } from '../../src/modules/content/domain/entities/project.js';
 import { ProjectStage } from '../../src/modules/content/domain/project-stage.js';
 import { InMemoryArticleRepository } from './in-memory-article.repository.js';
 import { InMemoryProjectRepository } from './in-memory-project.repository.js';
 
-export function articleProps(overrides: Partial<ArticleProps>): ArticleProps {
+export const AUTHOR = { id: 'user-ada', name: 'Ada Lovelace' };
+
+/** A paragraph block with the given text. */
+export function paragraph(text: string): ContentBlock {
+  return {
+    type: 'paragraph',
+    content: [{ type: 'text', text, styles: {} }],
+  };
+}
+
+export function articleProps(
+  overrides: Partial<Omit<ArticleProps, 'slug'>> & { slug?: string } = {},
+): ArticleProps {
   const slug = overrides.slug ?? 'an-article';
   return {
     id: `a-${slug}`,
-    slug,
     title: 'An Article',
-    description: 'About something.',
+    excerpt: 'About something.',
+    content: ArticleContent.create([paragraph('Something worth reading.')]),
+    coverImage: null,
     category: 'Backend',
-    status: ContentStatus.PUBLISHED,
-    body: '# An Article',
-    readingTimeMinutes: 5,
+    status: ArticleStatus.PUBLISHED,
+    authorId: AUTHOR.id,
     publishedAt: new Date('2026-09-01T00:00:00Z'),
     createdAt: new Date('2026-08-30T00:00:00Z'),
     updatedAt: new Date('2026-09-01T00:00:00Z'),
     ...overrides,
+    slug: ArticleSlug.create(slug),
   };
 }
 
@@ -41,7 +61,7 @@ export function projectProps(overrides: Partial<ProjectProps>): ProjectProps {
   };
 }
 
-/** Published, draft and archived articles and projects. */
+/** Published and draft articles and projects, and their author. */
 export function contentFixture() {
   const articles = new InMemoryArticleRepository();
   articles.add(
@@ -64,15 +84,16 @@ export function contentFixture() {
     articleProps({
       slug: 'draft-post',
       title: 'A Draft about NestJS',
-      status: ContentStatus.DRAFT,
+      status: ArticleStatus.DRAFT,
       publishedAt: null,
     }),
   );
   articles.add(
     articleProps({
       slug: 'old-post',
-      title: 'An Archived Post',
-      status: ContentStatus.ARCHIVED,
+      title: 'An Unpublished Post',
+      status: ArticleStatus.DRAFT,
+      publishedAt: null,
     }),
   );
 
@@ -102,5 +123,6 @@ export function contentFixture() {
       status: ContentStatus.DRAFT,
     }),
   );
-  return { articles, projects };
+  const authors = new FakeAuthorDirectory([AUTHOR]);
+  return { articles, projects, authors };
 }

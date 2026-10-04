@@ -31,7 +31,7 @@ export function registerArticleTools(
             .min(1)
             .max(100)
             .optional()
-            .describe('Words to match in the title, description or category'),
+            .describe('Words to match in the title, summary, slug or category'),
           category: z
             .string()
             .trim()

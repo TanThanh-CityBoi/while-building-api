@@ -34,7 +34,7 @@ export function registerContentResources(
               uri: articleUri(article.slug),
               name: article.slug,
               title: article.title,
-              description: article.description,
+              description: article.excerpt ?? undefined,
               mimeType: 'text/markdown',
             })),
           };

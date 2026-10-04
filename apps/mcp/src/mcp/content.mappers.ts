@@ -4,6 +4,7 @@ import type {
   ApiArticleSummary,
   ApiProject,
 } from '../content-api/content-api.types.js';
+import { blocksToMarkdown } from './blocks-markdown.js';
 
 // What the MCP layer exposes of the API's content: an explicit whitelist, so a
 // field added to the API never leaks to AI clients by accident. Every item
@@ -17,8 +18,12 @@ export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const ArticleSummarySchema = z.object({
   slug: z.string(),
   title: z.string(),
-  description: z.string(),
-  category: z.string(),
+  description: z
+    .string()
+    .nullable()
+    .describe("Short summary (the article's excerpt)"),
+  category: z.string().nullable(),
+  author: z.string().nullable().describe("The author's name"),
   publishedAt: z.string().nullable().describe('ISO 8601 date'),
   readingTimeMinutes: z.number(),
   uri: z.string().describe('MCP resource with the full article'),
@@ -26,7 +31,7 @@ export const ArticleSummarySchema = z.object({
 export type ArticleSummary = z.infer<typeof ArticleSummarySchema>;
 
 export const ArticleDetailSchema = ArticleSummarySchema.extend({
-  body: z.string().nullable().describe('Markdown'),
+  body: z.string().describe('The full text as Markdown'),
 });
 export type ArticleDetail = z.infer<typeof ArticleDetailSchema>;
 
@@ -46,8 +51,9 @@ export function toArticleSummary(article: ApiArticleSummary): ArticleSummary {
   return {
     slug: article.slug,
     title: article.title,
-    description: article.description,
+    description: article.excerpt,
     category: article.category,
+    author: article.author?.name ?? null,
     publishedAt: article.publishedAt,
     readingTimeMinutes: article.readingTimeMinutes,
     uri: articleUri(article.slug),
@@ -55,7 +61,10 @@ export function toArticleSummary(article: ApiArticleSummary): ArticleSummary {
 }
 
 export function toArticleDetail(article: ApiArticle): ArticleDetail {
-  return { ...toArticleSummary(article), body: article.body };
+  return {
+    ...toArticleSummary(article),
+    body: blocksToMarkdown(article.content),
+  };
 }
 
 export function toProject(project: ApiProject): ProjectSummary {

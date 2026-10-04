@@ -2,6 +2,7 @@ import type {
   ApiArticle,
   ApiProject,
 } from '../../content-api/content-api.types.js';
+import { blocksToMarkdown } from '../blocks-markdown.js';
 
 // Renders content as Markdown for MCP resources: compact metadata an LLM can
 // use as context, followed by the content itself.
@@ -12,15 +13,15 @@ export function articleMarkdown(article: ApiArticle): string {
   const frontMatter = [
     '---',
     `title: ${JSON.stringify(article.title)}`,
-    `description: ${JSON.stringify(article.description)}`,
-    `category: ${JSON.stringify(article.category)}`,
+    `description: ${JSON.stringify(article.excerpt ?? '')}`,
+    `category: ${JSON.stringify(article.category ?? '')}`,
+    `author: ${JSON.stringify(article.author?.name ?? '')}`,
     `published: ${day(article.publishedAt)}`,
     `reading_time_minutes: ${article.readingTimeMinutes}`,
     '---',
   ].join('\n');
-  const body =
-    article.body?.trim() || `# ${article.title}\n\n${article.description}`;
-  return `${frontMatter}\n\n${body}\n`;
+  const body = blocksToMarkdown(article.content) || article.excerpt || '';
+  return `${frontMatter}\n\n# ${article.title}\n\n${body}`.trimEnd() + '\n';
 }
 
 export function projectMarkdown(project: ApiProject): string {

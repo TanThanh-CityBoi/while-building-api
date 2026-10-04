@@ -6,17 +6,22 @@ describe('ListPublishedArticlesUseCase', () => {
   let listArticles: ListPublishedArticlesUseCase;
 
   beforeEach(() => {
-    listArticles = new ListPublishedArticlesUseCase(contentFixture().articles);
+    const { articles, authors } = contentFixture();
+    listArticles = new ListPublishedArticlesUseCase(articles, authors);
   });
 
-  it('lists only published articles, newest first, without bodies or status', async () => {
+  it('lists only published articles, newest first, without content or status', async () => {
     const result = await listArticles.execute({ page: 1, pageSize: 10 });
 
     expect(result.articles.map((a) => a.slug)).toEqual([
       'k3s-homelab',
       'nestjs-from-scratch',
     ]);
-    expect(result.articles[0]).not.toHaveProperty('body');
+    expect(result.articles[0]).not.toHaveProperty('content');
+    expect(result.articles[0]?.author).toEqual({
+      id: 'user-ada',
+      name: 'Ada Lovelace',
+    });
     expect(result.articles[0]).not.toHaveProperty('status');
     expect(result).toMatchObject({ page: 1, pageSize: 10, total: 2 });
     expect(result.totalPages).toBe(1);
