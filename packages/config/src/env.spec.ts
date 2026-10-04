@@ -4,12 +4,15 @@ import {
   readBoolean,
   readChoice,
   readDuration,
+  readInteger,
+  readList,
   readOrigins,
   readPort,
   readRequired,
   readSecret,
   readString,
   readTrustProxy,
+  readUrl,
   throwIfErrors,
 } from './env.js';
 
@@ -131,5 +134,47 @@ describe('environment readers', () => {
     expect(() => throwIfErrors(['A is required', 'B is wrong'])).toThrow(
       'Invalid environment configuration:\n  - A is required\n  - B is wrong',
     );
+  });
+
+  it('reads integers within a range, with a default', () => {
+    const errors: string[] = [];
+    const range = { min: 1, max: 10 };
+    expect(readInteger({ N: '7' }, 'N', 5, range, errors)).toBe(7);
+    expect(readInteger({}, 'N', 5, range, errors)).toBe(5);
+    expect(errors).toEqual([]);
+    expect(readInteger({ N: '11' }, 'N', 5, range, errors)).toBe(5);
+    expect(readInteger({ N: '2.5' }, 'N', 5, range, errors)).toBe(5);
+    expect(errors).toEqual([
+      'N must be an integer between 1 and 10',
+      'N must be an integer between 1 and 10',
+    ]);
+  });
+
+  it('reads required http(s) URLs without a trailing slash', () => {
+    const errors: string[] = [];
+    expect(readUrl({ URL: 'http://localhost:3000/' }, 'URL', errors)).toBe(
+      'http://localhost:3000',
+    );
+    expect(readUrl({ URL: 'https://api.example.com/v1' }, 'URL', errors)).toBe(
+      'https://api.example.com/v1',
+    );
+    expect(errors).toEqual([]);
+    readUrl({}, 'URL', errors);
+    readUrl({ URL: 'ftp://example.com' }, 'URL', errors);
+    readUrl({ URL: 'localhost:3000' }, 'URL', errors);
+    expect(errors).toEqual([
+      'URL is required',
+      'URL must be an http(s) URL, e.g. http://localhost:3000',
+      'URL must be an http(s) URL, e.g. http://localhost:3000',
+    ]);
+  });
+
+  it('reads comma-separated lists, with a default', () => {
+    expect(readList({ HOSTS: ' a, b ,,c ' }, 'HOSTS', ['x'])).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
+    expect(readList({}, 'HOSTS', ['x'])).toEqual(['x']);
   });
 });

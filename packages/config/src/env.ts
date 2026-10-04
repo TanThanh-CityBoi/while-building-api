@@ -64,6 +64,51 @@ export function readPort(
   return port;
 }
 
+/** An integer within `[min, max]`, with a default. */
+export function readInteger(
+  raw: RawEnv,
+  key: string,
+  fallback: number,
+  range: { min: number; max: number },
+  errors: string[],
+): number {
+  const value = readString(raw, key);
+  if (value === undefined) return fallback;
+  const number = Number(value);
+  if (!Number.isInteger(number) || number < range.min || number > range.max) {
+    errors.push(
+      `${key} must be an integer between ${range.min} and ${range.max}`,
+    );
+    return fallback;
+  }
+  return number;
+}
+
+/** A required absolute http(s) URL, returned without a trailing slash. */
+export function readUrl(raw: RawEnv, key: string, errors: string[]): string {
+  const value = readRequired(raw, key, errors);
+  if (!value) return value;
+  if (!URL.canParse(value) || !/^https?:$/.test(new URL(value).protocol)) {
+    errors.push(`${key} must be an http(s) URL, e.g. http://localhost:3000`);
+    return value;
+  }
+  return value.replace(/\/+$/, '');
+}
+
+/** A comma-separated list of non-empty values, with a default. */
+export function readList(
+  raw: RawEnv,
+  key: string,
+  fallback: readonly string[],
+): string[] {
+  const value = readString(raw, key);
+  if (value === undefined) return [...fallback];
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item !== '');
+}
+
 export function readChoice<T extends string>(
   raw: RawEnv,
   key: string,

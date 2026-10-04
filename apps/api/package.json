@@ -19,6 +19,8 @@
     "db:migration:generate": "nest build && typeorm migration:generate -d dist/database/data-source.js",
     "db:seed": "nest build && pnpm db:seed:prod",
     "db:seed:prod": "node dist/database/seed.js",
+    "db:seed:content": "nest build && pnpm db:seed:content:prod",
+    "db:seed:content:prod": "node dist/database/seed-content.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

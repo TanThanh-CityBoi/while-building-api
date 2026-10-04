@@ -8,3 +8,7 @@ export const trimString = ({ value }: TransformFnParams): unknown =>
 
 export const trimAndLowercase = ({ value }: TransformFnParams): unknown =>
   typeof value === 'string' ? value.trim().toLowerCase() : (value as unknown);
+
+/** Query-string booleans: "true" / "false" become booleans, anything else is left for the validators. */
+export const parseBooleanString = ({ value }: TransformFnParams): unknown =>
+  value === 'true' ? true : value === 'false' ? false : (value as unknown);

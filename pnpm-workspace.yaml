@@ -3,5 +3,9 @@ packages:
   - 'packages/*'
 
 allowBuilds:
+  # Gemini SDK (apps/ai): its only install script is a no-op `preinstall` echo. Never run it.
+  '@google/genai': false
   # Analytics postinstall pulled in via @nestjs/swagger → swagger-ui-dist. Not needed; never run it.
   '@scarf/scarf': false
+  # Pulled in by @google/genai; its postinstall only prints a version-scheme warning. Never run it.
+  protobufjs: false

@@ -8,6 +8,8 @@
     { "path": "./apps/notification" },
     { "path": "./apps/webhook" },
     { "path": "./apps/integration" },
+    { "path": "./apps/ai" },
+    { "path": "./apps/mcp" },
     { "path": "./packages/shared" },
     { "path": "./packages/config" },
     { "path": "./packages/database" },
