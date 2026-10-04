@@ -28,14 +28,14 @@ the MCP TypeScript SDK v2 (`@modelcontextprotocol/server` + `@modelcontextprotoc
 All tools are annotated `readOnlyHint: true`, reject unknown arguments, and return
 `structuredContent` (also serialised as JSON text). Every item carries the `uri` of its resource.
 
-| Tool              | Input                                                       | Output                                   |
-| ----------------- | ----------------------------------------------------------- | ---------------------------------------- |
-| `search_articles` | `query?`, `category?`, `limit` (1–20, default 5)            | `{ articles: ArticleSummary[], total }`  |
-| `get_article`     | `slug`                                                      | `{ article: ArticleSummary & { body } }` |
-| `search_projects` | `query?`, `technology?`, `featured?`, `limit` (1–20, def 5) | `{ projects: Project[], total }`         |
-| `get_project`     | `slug`                                                      | `{ project: Project }`                   |
+| Tool              | Input                                                       | Output                                                                     |
+| ----------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `search_articles` | `query?`, `category?`, `limit` (1–20, default 5)            | `{ articles: ArticleSummary[], total }`                                    |
+| `get_article`     | `slug`                                                      | `{ article: ArticleSummary & { body } }` (`body`: the content as Markdown) |
+| `search_projects` | `query?`, `technology?`, `featured?`, `limit` (1–20, def 5) | `{ projects: Project[], total }`                                           |
+| `get_project`     | `slug`                                                      | `{ project: Project }`                                                     |
 
-`ArticleSummary` = `{ slug, title, description, category, publishedAt, readingTimeMinutes, uri }`;
+`ArticleSummary` = `{ slug, title, description (the excerpt), category, author, publishedAt, readingTimeMinutes, uri }`;
 `Project` = `{ slug, name, description, technologies, stage, featured, links, uri }`. Fields are an
 explicit whitelist (`src/mcp/content.mappers.ts`): ids and timestamps are left out.
 
@@ -46,10 +46,10 @@ logged). An empty search is a normal result with an empty list.
 
 ## Resources
 
-| URI template       | Content                                                                                    |
-| ------------------ | ------------------------------------------------------------------------------------------ |
-| `article://{slug}` | Markdown: front matter (title, description, category, published date, reading time) + body |
-| `project://{slug}` | Markdown: name, description, stage, featured, technologies, links                          |
+| URI template       | Content                                                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `article://{slug}` | Markdown: front matter (title, description, category, author, published date, reading time) + the content converted from blocks |
+| `project://{slug}` | Markdown: name, description, stage, featured, technologies, links                                                               |
 
 `resources/list` advertises the 50 latest published articles and projects. Unknown, unpublished or
 malformed URIs answer the SDK's resource-not-found error (`-32602` with `data.uri`).

@@ -58,7 +58,7 @@ describe('MCP content resources', () => {
     ]);
   });
 
-  it('reads an article as Markdown with front matter and its body', async () => {
+  it('reads an article as Markdown with front matter and its content', async () => {
     const { contents } = await client.readResource({
       uri: 'article://k3s-homelab',
     });
@@ -73,11 +73,14 @@ describe('MCP content resources', () => {
         'title: "My k3s Homelab"',
         'description: "About k3s-homelab."',
         'category: "Kubernetes"',
+        'author: "Ada Lovelace"',
         'published: 2026-09-01',
         'reading_time_minutes: 5',
         '---',
         '',
         '# My k3s Homelab',
+        '',
+        '## Setup',
         '',
         'Running k3s on a Mini PC.',
         '',
@@ -85,14 +88,14 @@ describe('MCP content resources', () => {
     );
   });
 
-  it('falls back to the description when an article has no body', async () => {
+  it('falls back to the excerpt when an article has no content', async () => {
     const { contents } = await client.readResource({
       uri: 'article://nestjs-from-scratch',
     });
     expect((contents[0] as { text: string }).text).toContain(
-      '# NestJS from Scratch',
+      '# NestJS from Scratch\n\nModules first.',
     );
-    content.articles[1] = { ...content.articles[1], body: null };
+    content.articles[1] = { ...content.articles[1], content: [] };
     const again = await client.readResource({
       uri: 'article://nestjs-from-scratch',
     });

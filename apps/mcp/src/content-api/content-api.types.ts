@@ -11,8 +11,10 @@ export interface ApiArticleSummary {
   id: string;
   slug: string;
   title: string;
-  description: string;
-  category: string;
+  excerpt: string | null;
+  category: string | null;
+  coverImage: string | null;
+  author: { id: string; name: string } | null;
   publishedAt: string | null;
   readingTimeMinutes: number;
   createdAt: string;
@@ -20,7 +22,8 @@ export interface ApiArticleSummary {
 }
 
 export interface ApiArticle extends ApiArticleSummary {
-  body: string | null;
+  /** A BlockNote block document; see blocks-markdown.ts. */
+  content: unknown[];
 }
 
 export interface ApiProject {
