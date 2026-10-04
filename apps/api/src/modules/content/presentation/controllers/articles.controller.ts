@@ -4,8 +4,8 @@ import { Public } from '../../../auth/presentation/decorators/public.decorator.j
 import { GetPublishedArticleUseCase } from '../../application/use-cases/get-published-article.use-case.js';
 import { ListPublishedArticlesUseCase } from '../../application/use-cases/list-published-articles.use-case.js';
 import {
-  ArticleListResponseDto,
-  ArticleResponseDto,
+  PublishedArticleListResponseDto,
+  PublishedArticleResponseDto,
 } from '../dto/article-response.dto.js';
 import { ListArticlesQueryDto } from '../dto/list-articles-query.dto.js';
 import { SlugParamsDto } from '../dto/slug-params.dto.js';
@@ -24,15 +24,17 @@ export class ArticlesController {
   @Get()
   async list(
     @Query() query: ListArticlesQueryDto,
-  ): Promise<ArticleListResponseDto> {
+  ): Promise<PublishedArticleListResponseDto> {
     const { articles, ...meta } = await this.listArticles.execute(query);
     return { data: articles, meta };
   }
 
-  /** A published article, with its body. */
+  /** A published article, with its content. */
   @Get(':slug')
   @ApiNotFoundResponse({ description: 'No such published article.' })
-  async get(@Param() { slug }: SlugParamsDto): Promise<ArticleResponseDto> {
+  async get(
+    @Param() { slug }: SlugParamsDto,
+  ): Promise<PublishedArticleResponseDto> {
     return { data: await this.getArticle.execute(slug) };
   }
 }

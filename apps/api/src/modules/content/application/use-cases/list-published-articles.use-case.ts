@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { ContentStatus } from '../../domain/content-status.js';
+import { ArticleStatus } from '../../domain/article-status.js';
 import { ArticleRepository } from '../../domain/repositories/article.repository.js';
 import {
-  toArticleSummaryView,
+  pageOf,
+  toPublishedArticleSummaryView,
+  withAuthors,
   type ArticleListView,
+  type PublishedArticleSummaryView,
 } from '../dto/article.view.js';
+import { AuthorDirectory } from '../ports/author-directory.js';
 
 export interface ListPublishedArticlesQuery {
   page: number;
@@ -16,19 +20,23 @@ export interface ListPublishedArticlesQuery {
 /** Lists published articles for the public, newest first. */
 @Injectable()
 export class ListPublishedArticlesUseCase {
-  constructor(private readonly articles: ArticleRepository) {}
+  constructor(
+    private readonly articles: ArticleRepository,
+    private readonly authors: AuthorDirectory,
+  ) {}
 
-  async execute(query: ListPublishedArticlesQuery): Promise<ArticleListView> {
+  async execute(
+    query: ListPublishedArticlesQuery,
+  ): Promise<ArticleListView<PublishedArticleSummaryView>> {
     const { articles, total } = await this.articles.list({
       ...query,
-      status: ContentStatus.PUBLISHED,
+      status: ArticleStatus.PUBLISHED,
     });
-    return {
-      articles: articles.map(toArticleSummaryView),
-      page: query.page,
-      pageSize: query.pageSize,
-      total,
-      totalPages: Math.ceil(total / query.pageSize),
-    };
+    const views = await withAuthors(
+      articles,
+      this.authors,
+      toPublishedArticleSummaryView,
+    );
+    return pageOf(views, query, total);
   }
 }

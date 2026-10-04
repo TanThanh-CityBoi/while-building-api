@@ -20,9 +20,17 @@ async function seedContent(): Promise<void> {
 
   await dataSource.initialize();
   try {
-    await dataSource
-      .getRepository(ArticleOrmEntity)
-      .upsert(sampleArticles, ['slug']);
+    // The ROOT account (if bootstrapped) is the sample author.
+    const [root] = await dataSource.query<{ id: string }[]>(
+      `SELECT "id" FROM "users" WHERE "role" = 'ROOT' LIMIT 1`,
+    );
+    await dataSource.getRepository(ArticleOrmEntity).upsert(
+      sampleArticles.map((article) => ({
+        ...article,
+        authorId: root?.id ?? null,
+      })),
+      ['slug'],
+    );
     await dataSource
       .getRepository(ProjectOrmEntity)
       .upsert(sampleProjects, ['slug']);

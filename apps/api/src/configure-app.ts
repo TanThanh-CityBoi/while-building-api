@@ -1,6 +1,7 @@
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Express } from 'express';
 import type { EnvironmentVariables } from './config/env.validation.js';
 import { AppErrorFilter } from './shared/http/app-error.filter.js';
@@ -20,6 +21,9 @@ export function configureApp(app: INestApplication): void {
     // Needed behind a reverse proxy for correct client IPs (rate limiting).
     express.set('trust proxy', trustProxy);
   }
+
+  // Article content (a JSON block document) can outgrow the default 100 KB.
+  (app as NestExpressApplication).useBodyParser('json', { limit: '1mb' });
 
   // The refresh token arrives as an httpOnly cookie.
   app.use(cookieParser());

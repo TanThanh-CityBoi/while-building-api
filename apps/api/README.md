@@ -5,8 +5,8 @@ Backend API for **While Building** — _Things I build, things I learn, things I
 ## Overview
 
 `apps/api` is the main business API of the [`while-building-api` monorepo](../../README.md):
-authentication, users and authorization, plus read-only public content (articles and projects);
-content management (drafts, publishing, media…) is next. It owns the backend's business logic. It is a plain Node.js process
+authentication, users and authorization, article writing and publishing for the CMS, and public
+read-only content (articles and projects); media, revisions and project management are next. It owns the backend's business logic. It is a plain Node.js process
 with no provider-specific code, so it runs on Render, in Docker, on Kubernetes/k3s or any other
 Node.js host.
 
@@ -20,7 +20,7 @@ The frontend lives in a separate repository,
 
 - **client** — the public website (only uses `GET /health` for now)
 - **cms** — While Building CMS, the internal content management system, which signs in and
-  manages users (and, next, content) through this API
+  manages users and articles through this API
 
 The CMS's HTTP layer (`packages/api-client`) follows the contract documented below; both sides
 use the same response shapes.
@@ -105,11 +105,12 @@ models they correspond to live in each module's `infrastructure/persistence/` fo
 (`*.orm-entity.ts`) and are listed in `src/database/typeorm.config.ts`. Both belong to the API, not
 to the shared package.
 
-| Migration                                  | Change                                                                                                  |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `1790500000000-CreateUsersAndAuthSessions` | `users` and `auth_sessions` tables, role/status enums, indexes                                          |
-| `1790600000000-AddSessionVersions`         | `users.session_version`, `auth_sessions.user_session_version` (default 0; existing sessions stay valid) |
-| `1790700000000-CreateArticlesAndProjects`  | `articles` and `projects` tables, `content_status` / `project_stage` enums, slug and status indexes     |
+| Migration                                  | Change                                                                                                                                                                                     |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `1790500000000-CreateUsersAndAuthSessions` | `users` and `auth_sessions` tables, role/status enums, indexes                                                                                                                             |
+| `1790600000000-AddSessionVersions`         | `users.session_version`, `auth_sessions.user_session_version` (default 0; existing sessions stay valid)                                                                                    |
+| `1790700000000-CreateArticlesAndProjects`  | `articles` and `projects` tables, `content_status` / `project_stage` enums, slug and status indexes                                                                                        |
+| `1790800000000-ArticlePublishing`          | `article_status` enum (archived → draft), Markdown `body` → jsonb `content`, `description` → `excerpt`, `cover_image`, `author_id` (FK, `SET NULL`), indexes; drops `reading_time_minutes` |
 
 **Pulling this change into an existing database?** Run `pnpm db:migrate` before starting the API.
 
@@ -125,12 +126,12 @@ images, where the Nest CLI isn't installed).
 
 Current tables:
 
-| Table           | Purpose                                                                                                                                                                                                              |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `users`         | `id` (uuid), unique `email`, `password_hash`, `name`, `role`, `status`, `session_version`, `last_login_at`, timestamps. A partial unique index allows only one ROOT.                                                 |
-| `articles`      | `id` (uuid), unique `slug`, `title`, `description`, `category`, `status` (`DRAFT`/`PUBLISHED`/`ARCHIVED`), Markdown `body`, `reading_time_minutes`, `published_at`, timestamps. Indexed by `(status, published_at)`. |
-| `projects`      | `id` (uuid), unique `slug`, `name`, `description`, `technologies` (text[]), `stage` (`active`/`experimental`/`archived`), `featured`, `status`, `links` (jsonb `{ label, href? }[]`), timestamps.                    |
-| `auth_sessions` | One row per sign-in: `user_id` (cascade delete), SHA-256 `token_hash` (+ previous hash for rotation), `user_session_version`, `expires_at`, `revoked_at`, timestamps. Indexed by `user_id` and `expires_at`.         |
+| Table           | Purpose                                                                                                                                                                                                                                                                                                     |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`         | `id` (uuid), unique `email`, `password_hash`, `name`, `role`, `status`, `session_version`, `last_login_at`, timestamps. A partial unique index allows only one ROOT.                                                                                                                                        |
+| `articles`      | `id` (uuid), unique `slug`, `title`, `excerpt`, `category`, `status` (`DRAFT`/`PUBLISHED`), `content` (jsonb block document from the CMS editor), `cover_image`, `author_id` (→ `users`, `SET NULL` on delete), `published_at`, timestamps. Indexed by `(status, published_at)`, `updated_at`, `author_id`. |
+| `projects`      | `id` (uuid), unique `slug`, `name`, `description`, `technologies` (text[]), `stage` (`active`/`experimental`/`archived`), `featured`, `status`, `links` (jsonb `{ label, href? }[]`), timestamps.                                                                                                           |
+| `auth_sessions` | One row per sign-in: `user_id` (cascade delete), SHA-256 `token_hash` (+ previous hash for rotation), `user_session_version`, `expires_at`, `revoked_at`, timestamps. Indexed by `user_id` and `expires_at`.                                                                                                |
 
 ### Seed
 
@@ -141,8 +142,9 @@ pnpm db:seed:content  # local development only: sample articles and projects (in
 ```
 
 `db:seed:content` writes the sample content in `src/database/sample-content.ts` (matched by slug, so
-re-running resets those rows and leaves others alone). It refuses to run with `NODE_ENV=production`;
-until the CMS manages content, it is the only way content gets into the database.
+re-running resets those rows and leaves others alone; the ROOT account, if seeded, becomes the
+articles' author). It refuses to run with `NODE_ENV=production`. Projects only come from this seed
+until the CMS manages them.
 
 ## Root account
 
@@ -206,17 +208,41 @@ Errors use the NestJS shape `{ "statusCode": 400, "message": "…" | ["…"], "e
 
 ## Content
 
+### Article management (CMS)
+
+Authenticated routes; each needs the listed permission. Articles start as drafts; `publish` makes one
+public (it needs a title, a slug and some content), `unpublish` makes it a draft again. Saving a
+published article updates the public page right away (there are no revisions yet).
+
+| Endpoint                               | Permission        | Description                                                                                                                                                            |
+| -------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /content/articles`                | `CONTENT_READ`    | `?page=1&pageSize=20&search=&status=&sort=updatedAt&order=desc` → `{ data: ArticleSummary[], meta }`, every status, recently updated first.                            |
+| `GET /content/articles/:id`            | `CONTENT_READ`    | `{ data: Article }`, with its `content`.                                                                                                                               |
+| `POST /content/articles`               | `CONTENT_CREATE`  | `{ title, slug?, excerpt?, category?, coverImage?, content? }` → `201` draft by the signed-in user; the slug defaults to one derived from the title. `409` slug taken. |
+| `PATCH /content/articles/:id`          | `CONTENT_UPDATE`  | Any of the create fields; `null` clears an optional one. Changing the title keeps the slug. `409` slug taken; `400` if a published article would lose its content.     |
+| `POST /content/articles/:id/publish`   | `CONTENT_PUBLISH` | Draft → published (`publishedAt` = now). `409` already published, `400` no content.                                                                                    |
+| `POST /content/articles/:id/unpublish` | `CONTENT_PUBLISH` | Published → draft (`publishedAt` = `null`). `409` not published.                                                                                                       |
+| `DELETE /content/articles/:id`         | `CONTENT_DELETE`  | `204`; permanent.                                                                                                                                                      |
+
+`Article` = `{ id, slug, title, excerpt, category, coverImage, status, author: { id, name } | null,
+publishedAt, readingTimeMinutes, content, createdAt, updatedAt }`; `ArticleSummary` is the same
+without `content`. `content` is the editor's block document (BlockNote JSON), stored as-is; the API
+only checks that it's a list of blocks and reads its text (for `readingTimeMinutes`, 200 words a
+minute, and the "has content" rule). Request bodies may be up to 1 MB.
+
+### Public content
+
 Public, read-only routes for the website (and the MCP server). They need no token and only ever
-return `PUBLISHED` content: drafts and archived items answer `404`, the same as an unknown slug.
+return `PUBLISHED` content: drafts answer `404`, the same as an unknown slug.
 
-| Endpoint              | Description                                                                                                                                                                          |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GET /articles`       | `?page=1&pageSize=10&search=&category=` → `{ data: ArticleSummary[], meta }`, newest first. `search` matches title, description or category; `category` is exact (case-insensitive). |
-| `GET /articles/:slug` | `{ data: Article }` — the summary plus its Markdown `body`.                                                                                                                          |
-| `GET /projects`       | `?page=1&pageSize=10&search=&technology=&featured=` → `{ data: Project[], meta }`, featured first, then most recently updated. `technology` is exact (case-insensitive).             |
-| `GET /projects/:slug` | `{ data: Project }`.                                                                                                                                                                 |
+| Endpoint              | Description                                                                                                                                                                                     |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /articles`       | `?page=1&pageSize=10&search=&category=` → `{ data: PublishedArticleSummary[], meta }`, newest first. `search` matches title, excerpt, slug or category; `category` is exact (case-insensitive). |
+| `GET /articles/:slug` | `{ data: PublishedArticle }` — the summary plus its `content`.                                                                                                                                  |
+| `GET /projects`       | `?page=1&pageSize=10&search=&technology=&featured=` → `{ data: Project[], meta }`, featured first, then most recently updated. `technology` is exact (case-insensitive).                        |
+| `GET /projects/:slug` | `{ data: Project }`.                                                                                                                                                                            |
 
-`ArticleSummary` = `{ id, slug, title, description, category, publishedAt, readingTimeMinutes, createdAt, updatedAt }`;
+`PublishedArticleSummary` = `{ id, slug, title, excerpt, category, coverImage, author: { id, name } | null, publishedAt, readingTimeMinutes, createdAt, updatedAt }`;
 `Project` = `{ id, slug, name, description, technologies, stage, featured, links, createdAt, updatedAt }`.
 Responses never include the publishing status. `pageSize` is at most 50; slugs are lower-case words
 joined by hyphens (anything else is a `400`).
@@ -248,7 +274,7 @@ one static table, `modules/auth/domain/authorization/role-permissions.ts`:
 | `CONTENT_DELETE`  |  ✓   |   ✓   |        |        |
 | `CONTENT_PUBLISH` |  ✓   |   ✓   |   ✓    |        |
 
-Content permissions are defined ahead of content management; the public content routes below need none.
+The CMS article routes check these permissions; the public content routes need none.
 
 Authorization is enforced by two global guards: `AccessTokenGuard` (every route needs a valid access
 token unless marked `@Public()`) and `PermissionsGuard` (routes marked `@Permissions(...)` need all
@@ -344,7 +370,7 @@ src/
 │   │   ├── infrastructure/          # TypeORM user repository + mapper, Argon2PasswordHasher
 │   │   ├── presentation/            # UsersController, DTOs
 │   │   └── users.module.ts
-│   └── content/                     # articles and projects (public, read-only for now); owns CONTENT_* permissions
+│   └── content/                     # articles (CMS writing + publishing, public reads) and projects (public reads); owns CONTENT_* permissions
 ├── shared/                          # AppErrorFilter (AppError → HTTP), pagination DTO, DTO transformers, escapeLike
 ├── config/                          # the API's environment schema and validation
 ├── database/                        # TypeORM config (entities, migrations), CLI data source, migrations, seeds
@@ -360,7 +386,7 @@ test/                                # e2e tests, setup, and in-memory fakes for
 
 Planned, not implemented yet:
 
-- Content management for articles and projects (drafts, publishing, revisions); experiments
+- Article revisions, scheduled publishing, tags; project management in the CMS; experiments
 - Media storage
 - Search, RSS and sitemap for the public site
 - Analytics and comments

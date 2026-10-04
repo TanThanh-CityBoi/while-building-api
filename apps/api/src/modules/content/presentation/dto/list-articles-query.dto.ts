@@ -24,7 +24,7 @@ export class ListArticlesQueryDto {
   @Max(50)
   pageSize: number = 10;
 
-  /** Matches title, description or category (case-insensitive). */
+  /** Matches title, excerpt, slug or category (case-insensitive). */
   @IsOptional()
   @Transform(trimString)
   @IsString()

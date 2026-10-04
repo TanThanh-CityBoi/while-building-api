@@ -2,6 +2,7 @@ import type { Server } from 'node:http';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { ArticleStatus } from '../src/modules/content/domain/article-status.js';
 import { ContentStatus } from '../src/modules/content/domain/content-status.js';
 import { ProjectStage } from '../src/modules/content/domain/project-stage.js';
 import { ArticleOrmEntity } from '../src/modules/content/infrastructure/persistence/article.orm-entity.js';
@@ -20,8 +21,11 @@ interface ListBody<T> {
 interface ArticleBody {
   slug: string;
   title: string;
+  excerpt: string | null;
   publishedAt: string | null;
-  body?: string | null;
+  readingTimeMinutes: number;
+  author: { id: string; name: string } | null;
+  content?: unknown[];
 }
 interface ProjectBody {
   slug: string;
@@ -62,12 +66,13 @@ describe('Content (e2e)', () => {
       }),
       article('draft-post', {
         title: 'A Draft about NestJS',
-        status: ContentStatus.DRAFT,
+        status: ArticleStatus.DRAFT,
         publishedAt: null,
       }),
       article('old-post', {
-        title: 'Archived 100% of it',
-        status: ContentStatus.ARCHIVED,
+        title: 'Unpublished 100% of it',
+        status: ArticleStatus.DRAFT,
+        publishedAt: null,
       }),
     ]);
     await dataSource.getRepository(ProjectOrmEntity).save([
@@ -86,7 +91,7 @@ describe('Content (e2e)', () => {
   });
 
   describe('articles', () => {
-    it('lists published articles without signing in, newest first, without bodies', async () => {
+    it('lists published articles without signing in, newest first, without content', async () => {
       const response = await request(http).get('/articles').expect(200);
       const body = bodyOf<ListBody<ArticleBody>>(response);
 
@@ -100,8 +105,14 @@ describe('Content (e2e)', () => {
         total: 2,
         totalPages: 1,
       });
-      expect(body.data[0]).not.toHaveProperty('body');
+      expect(body.data[0]).not.toHaveProperty('content');
       expect(body.data[0]).not.toHaveProperty('status');
+      expect(body.data[0]).not.toHaveProperty('authorId');
+      expect(body.data[0]).toMatchObject({
+        excerpt: 'About k3s-homelab.',
+        readingTimeMinutes: 1,
+        author: null,
+      });
     });
 
     it('searches published articles only, treating wildcards literally', async () => {
@@ -134,7 +145,7 @@ describe('Content (e2e)', () => {
       expect(body.meta).toMatchObject({ total: 2, totalPages: 2 });
     });
 
-    it('returns a published article with its body', async () => {
+    it('returns a published article with its content', async () => {
       const response = await request(http)
         .get('/articles/k3s-homelab')
         .expect(200);
@@ -142,7 +153,14 @@ describe('Content (e2e)', () => {
         slug: 'k3s-homelab',
         title: 'My k3s Homelab',
         publishedAt: '2026-09-12T00:00:00.000Z',
-        body: '# k3s-homelab',
+        content: [
+          {
+            type: 'paragraph',
+            content: [
+              { type: 'text', text: 'All about k3s-homelab.', styles: {} },
+            ],
+          },
+        ],
       });
     });
 
@@ -221,11 +239,15 @@ function article(
   return {
     slug,
     title: slug,
-    description: `About ${slug}.`,
+    excerpt: `About ${slug}.`,
     category: 'Backend',
-    status: ContentStatus.PUBLISHED,
-    body: `# ${slug}`,
-    readingTimeMinutes: 5,
+    status: ArticleStatus.PUBLISHED,
+    content: [
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: `All about ${slug}.`, styles: {} }],
+      },
+    ],
     publishedAt: new Date('2026-09-01T00:00:00Z'),
     ...overrides,
   };
